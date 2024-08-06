@@ -1,0 +1,52 @@
+name: vsphere-csi-driver
+summary: vsphere-csi-driver ROCK image.
+description: >
+  This rock is a drop in replacement for the
+  gcr.io/cloud-provider-vsphere/csi/ci/driver@sha256:d94efcfe07915763b2f4ee120975abf44c12b90520703114e2d6a29644d9c4eb image.
+version: v3.3.1
+license: Apache-2.0
+
+base: ubuntu@24.04
+build-base: ubuntu@24.04
+platforms:
+  amd64:
+
+entrypoint-service: vsphere-csi-driver
+services:
+  vsphere-csi-driver:
+    command: /bin/vsphere-csi [ -h ]
+    override: replace
+    startup: enabled
+
+parts:
+  build-deps:
+    plugin: nil
+    build-snaps:
+      - go/1.22/stable
+
+  vsphere-csi-driver:
+    after: [build-deps]
+    plugin: go
+    source-type: git
+    source: https://github.com/kubernetes-sigs/vsphere-csi-driver
+    source-tag: v3.3.1
+    # source-depth: 1
+    override-build: |
+      # rockcraft can't checkout specific commits
+      git checkout 71b9ba1e
+
+      export VERSION=v3.3.1
+      export VERSION_PARAM=sigs.k8s.io/vsphere-csi-driver/v3/pkg/csi/service.Version
+
+      mkdir -p $CRAFT_PART_INSTALL/bin
+      go build -a \
+        -ldflags="-w -s -extldflags=static -X ${VERSION_PARAM}=${VERSION}" \
+        -o $CRAFT_PART_INSTALL/bin/vsphere-csi ./cmd/vsphere-csi
+
+  runtime-deps:
+    plugin: nil
+    stage-packages:
+      - libnfs-utils
+      - util-linux
+      - e2fsprogs
+      - xfsprogs
